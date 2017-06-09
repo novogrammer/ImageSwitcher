@@ -1,49 +1,56 @@
 (function () {
-    function switchImage(img) {
-        chrome.storage.sync.get(null, function (items) {
-            if (items.data) {
-                items.data.forEach(function (switcher) {
-                    if (img.src.startsWith(switcher.from)) {
-                        img.src = switcher.to;
-                    }
-                });
+    function switchImage(img, switcherList) {
+        switcherList.forEach(function (switcher) {
+            if (img.src.startsWith(switcher.from)) {
+                img.src = switcher.to;
             }
         });
     }
 
     function switchAllImages() {
-        var start = performance.now();
-        document.querySelectorAll('img').forEach(function (img) {
-            switchImage(img);
+        chrome.storage.sync.get(null, function (items) {
+            var start = performance.now();
+            if (items.data) {
+                document.querySelectorAll('img').forEach(function (img) {
+                    switchImage(img, items.data);
+                });
+            }
+            var end = performance.now();
+            console.debug("switchAllImages", "latency", end - start);
         });
-        var end = performance.now();
-        console.debug("switchAllImages", "latency", end - start);
     }
 
     switchAllImages();
     var mutationObserver = new MutationObserver(function (mutationRecordsList) {
-        mutationRecordsList.forEach(function (mutationRecord) {
-            switch (mutationRecord.type) {
-                case "childList":
-                    mutationRecord.addedNodes.forEach(function (addedNode) {
-                        if (addedNode instanceof HTMLElement) {
-                            addedNode.querySelectorAll('img').forEach(function (img) {
-                                switchImage(img);
+        chrome.storage.sync.get(null, function (items) {
+            var start = performance.now();
+            if (items.data) {
+                mutationRecordsList.forEach(function (mutationRecord) {
+                    switch (mutationRecord.type) {
+                        case "childList":
+                            mutationRecord.addedNodes.forEach(function (addedNode) {
+                                if (addedNode instanceof HTMLElement) {
+                                    addedNode.querySelectorAll('img').forEach(function (img) {
+                                        switchImage(img, items.data);
+                                    });
+                                }
                             });
-                        }
-                    });
-                    break;
-                case "attributes":
-                    if (mutationRecord.target instanceof HTMLElement) {
-                        if (mutationRecord.target.tagName.toLowerCase() === "img") {
-                            switchImage(mutationRecord.target);
-                        }
+                            break;
+                        case "attributes":
+                            if (mutationRecord.target instanceof HTMLElement) {
+                                if (mutationRecord.target.tagName.toLowerCase() === "img") {
+                                    switchImage(mutationRecord.target, items.data);
+                                }
+                            }
+                            break;
+                        default:
+                            //DO NOTHING
+                            break;
                     }
-                    break;
-                default:
-                    //DO NOTHING
-                    break;
+                });
             }
+            var end = performance.now();
+            console.debug("MutationObserver callback", "latency", end - start);
         });
     });
 
