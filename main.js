@@ -12,9 +12,12 @@
     }
 
     function switchAllImages() {
+        var start = performance.now();
         document.querySelectorAll('img').forEach(function (img) {
             switchImage(img);
         });
+        var end = performance.now();
+        console.debug("switchAllImages", "latency", end - start);
     }
 
     switchAllImages();
